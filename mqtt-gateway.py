@@ -119,7 +119,7 @@ class MQTTGateway(object):
 
     def __init__(self, ccn_lite_path, mqtt_broker_host, mqtt_broker_port=1883,
                  retain_pub=False, wpan_iface="wpan0", face_port=6364, datadir=None,
-                 http_status_port=None):
+                 http_status_port=None, **kwargs):
         self.ccn_lite_path = ccn_lite_path
         sys.path.append(os.path.abspath(os.path.join(ccn_lite_path, "src", "py", "ccnlite")))
         global ndn
@@ -194,6 +194,8 @@ if __name__ == "__main__":
     argparser.add_argument('-t', '--http-status-port', required=False,
                            default=None, type=int,
                            help="Directory to the CCN lite database")
+    argparser.add_argument("-n", '--name', nargs='*', required=False,
+                           help="Name to fetch from the ICN (can contain multiple entries)")
     argparser.add_argument("ccn_lite_path", metavar="CCN_LITE_PATH",
                            help="Path to the CCN lite git repository")
 
@@ -201,9 +203,8 @@ if __name__ == "__main__":
     # add CCN-lite python bindings for packet parsing
     g = MQTTGateway(**vars(args))
     while True:
-        name = input()
-        name = name.strip('/')
-        interest = ndn.mkInterest(name.encode().split(b'/'))
-        g.face_socket.sendto(interest, ("<broadcast>", g.face_port))
-    # except ValueError:
-    #     argparser.print_help()
+        for name in args.name:
+            name = name.strip('/')
+            interest = ndn.mkInterest(name.encode().split(b'/'))
+            g.face_socket.sendto(interest, ("<broadcast>", g.face_port))
+        time.sleep(1)
