@@ -119,7 +119,7 @@ class MQTTGateway(object):
                     self.client.loop_stop()
 
     def __init__(self, ccn_lite_path, mqtt_broker_host, mqtt_broker_port=1883,
-                 retain_pub=False, wpan_iface="wpan0", face_port=6364, datadir=None,
+                 retain_pub=False, wpan_iface="lowpan0", face_port=6364, datadir=None,
                  http_status_port=None):
         self.ccn_lite_path = ccn_lite_path
         sys.path.append(os.path.abspath(os.path.join(ccn_lite_path, "src", "py", "ccnlite")))
@@ -162,12 +162,10 @@ class MQTTGateway(object):
             if self._relay == None:
                 args = [os.path.join(self.ccn_lite_path, "src", "ccn-lite-relay"),
                         '-u', str(self.face_port),
-                        '-w', self.wpan_iface,
-                        '-v', "debug",
-                        '-d', self.datadir]
+                        '-w', self.wpan_iface]
                 if self.http_status_port:
                     args.extend(['-t', str(self.http_status_port)])
-                self._relay = subprocess.Popen(args, stdout=subprocess.PIPE)
+                self._relay = subprocess.Popen(args, stderr=subprocess.PIPE)
             if self.face_socket == None:
                 self.face_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.face_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST,
@@ -208,13 +206,12 @@ if __name__ == "__main__":
     g = MQTTGateway(**vars(args))
     pattern = re.compile(r"mgmt: adding prefix <(.*)> to faceid=")
     while True:
-        line = g._relay.stdout.readline()
+        line = g._relay.stderr.readline().decode('utf-8',"replace")
         if not line:
             continue
         match = pattern.match(line)
         if match:
             name = match.group(1)
-            name = ccnb_to_ndn_name(name)
             print("New content at %s... INDUCING CONTENT" % name)
             name = name.strip('/')
             interest = ndn.mkInterest(name.encode().split(b'/'))
