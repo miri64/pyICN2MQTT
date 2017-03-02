@@ -8,6 +8,7 @@
 
 import paho.mqtt.client as mqtt
 import argparse, socket, os, select, tempfile, subprocess, sys, threading, time
+import re
 import queue
 
 if sys.version_info < (3,):
@@ -166,12 +167,17 @@ class MQTTGateway(object):
                         '-d', self.datadir]
                 if self.http_status_port:
                     args.extend(['-t', str(self.http_status_port)])
-                self._relay = subprocess.Popen(args)
+                self._relay = subprocess.Popen(args, stdout=subprocess.PIPE)
             if self.face_socket == None:
                 self.face_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.face_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST,
                                             1)
                 self.face_socket.bind(("", 6363))
+
+def ccnb_to_ndn_name(name):
+    name = name[(name.rfind("prefixreg")+len("prefixreg")):name.find("%00%00")]
+    name = name.replace("%00", "/")
+    return name
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description="CCN-lite to MQTT gateway")
@@ -200,10 +206,17 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     # add CCN-lite python bindings for packet parsing
     g = MQTTGateway(**vars(args))
+    pattern = re.compile(r"mgmt: adding prefix <(.*)> to faceid=")
     while True:
-        name = input()
-        name = name.strip('/')
-        interest = ndn.mkInterest(name.encode().split(b'/'))
-        g.face_socket.sendto(interest, ("<broadcast>", g.face_port))
-    # except ValueError:
-    #     argparser.print_help()
+        line = g._relay.stdout.readline()
+        if not line:
+            continue
+        match = pattern.match(line)
+        if match:
+            name = match.group(1)
+            name = ccnb_to_ndn_name(name)
+            print("New content at %s... INDUCING CONTENT" % name)
+            name = name.strip('/')
+            interest = ndn.mkInterest(name.encode().split(b'/'))
+            g.face_socket.sendto(interest, ("<broadcast>", g.face_port))
+        print(line, end="")
