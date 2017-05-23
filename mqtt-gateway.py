@@ -206,7 +206,7 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     # add CCN-lite python bindings for packet parsing
     g = MQTTGateway(**vars(args))
-    pattern = re.compile(r"incoming data=<(.*)> ndn2013 from=")
+    pattern = re.compile(r".*incoming data=<(.*)>.*")
     while True:
         line = g._relay.stderr.readline().decode('utf-8',"replace")
         if not line:
