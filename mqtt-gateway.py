@@ -3,6 +3,7 @@
 # vim:fenc=utf-8
 #
 # Copyright © 2017 Freie Universität Berlin
+# Copyright © 2017 HAW Hamburg
 #
 # Distributed under terms of the MIT license.
 
@@ -162,7 +163,8 @@ class MQTTGateway(object):
             if self._relay == None:
                 args = [os.path.join(self.ccn_lite_path, "src", "ccn-lite-relay"),
                         '-u', str(self.face_port),
-                        '-w', self.wpan_iface]
+                        '-w', self.wpan_iface,
+                        '-v', 'info']
                 if self.http_status_port:
                     args.extend(['-t', str(self.http_status_port)])
                 self._relay = subprocess.Popen(args, stderr=subprocess.PIPE)
@@ -204,7 +206,7 @@ if __name__ == "__main__":
     args = argparser.parse_args()
     # add CCN-lite python bindings for packet parsing
     g = MQTTGateway(**vars(args))
-    pattern = re.compile(r"mgmt: adding prefix <(.*)> to faceid=")
+    pattern = re.compile(r"incoming data=<(.*)> ndn2013 from=")
     while True:
         line = g._relay.stderr.readline().decode('utf-8',"replace")
         if not line:
